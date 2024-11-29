@@ -1,0 +1,63 @@
+---
+
+- name: Install Docker and enable Docker socket on CentOS
+  hosts: centos
+  become: true
+  tasks:
+
+    - name: Update yum package index
+      yum:
+        name: '*'
+        state: latest
+
+    - name: Install dependencies on CentOS
+      yum:
+        name:
+          - yum-utils
+          - device-mapper-persistent-data
+          - lvm2
+        state: present
+
+    - name: Add Docker's GPG key for CentOS
+      rpm_key:
+        key: https://download.docker.com/linux/centos/gpg
+        state: present
+
+    - name: Add Docker repository for CentOS
+      yum_repository:
+        name: docker-ce
+        description: Docker CE Stable Repository
+        baseurl: https://download.docker.com/linux/centos/9/x86_64/stable
+        enabled: 1
+        gpgcheck: 1
+        gpgkey: https://download.docker.com/linux/centos/gpg
+
+    - name: Install Docker CE on CentOS
+      yum:
+        name: docker-ce
+        state: present
+
+    - name: Start and enable Docker service on CentOS
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add user qjltbarquilla to the docker group
+      user:
+        name: qjltbarquilla
+        groups: docker
+        append: yes
+
+    - name: Ensure Docker socket is present and accessible
+      command: stat /var/run/docker.sock
+      register: docker_socket_stat
+      ignore_errors: yes
+
+    - name: Set permissions on Docker socket
+      file:
+        path: /var/run/docker.sock
+        mode: '777'
+        owner: root
+        group: docker
+      when: docker_socket_stat.rc == 0
